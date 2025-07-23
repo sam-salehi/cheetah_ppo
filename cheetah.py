@@ -4,6 +4,7 @@ from torch.nn.functional import mse_loss
 import random
 from nn import CheetahNet
 import torch
+from gymnasium.wrappers import RecordVideo
 
 
 BUFFER_SIZE = 2048
@@ -122,7 +123,7 @@ def take_action(network, obs, env):
 
 
 def train():
-    env = gym.make("HalfCheetah-v5")
+    env = gym.make("HalfCheetah-v5", render_mode="human", width=2400, height=1600)
     network = CheetahNet()
     optimizer = torch.optim.Adam(network.parameters(), lr=LR)
 
@@ -220,20 +221,27 @@ def train():
         torch.save(network.state_dict(), SAVE_PATH)
 
 
-def play(model_path, num_games):
-    env = gym.make("HalfCheetah-v5", render_mode="human")
+def play(model_path, num_games, record_video=False, video_dir="videos"):
+    render_mode = "rgb_array" if record_video else "human"
+    env = gym.make("HalfCheetah-v5", render_mode=render_mode, width=2400, height=1600)
+    if record_video:
+        env = RecordVideo(env, video_dir, episode_trigger=lambda x: True)
     network = CheetahNet()
     network.load_state_dict(torch.load(model_path))
 
     for i in range(num_games):
         env.close()
-        env = gym.make("HalfCheetah-v5", render_mode="human")
+        env = gym.make("HalfCheetah-v5", render_mode=render_mode, width=2400, height=1600)
+        if record_video:
+            env = RecordVideo(env, video_dir, episode_trigger=lambda x: True)
         observation, _ = env.reset()
         done = False
         while not done:
             trans, observation = take_action(network, observation, env)
             done = trans.done
 
+    env.close()
+
 
 if __name__ == "__main__":
-    train()
+    play(SAVE_PATH,5,True,"videos")
